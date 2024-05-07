@@ -3,9 +3,15 @@ using System.Diagnostics;
 using System.Reflection.Metadata.Ecma335;
 
 IEnumerable<int> source = Enumerable.Range(0, 1000).ToArray();
-Console.WriteLine(Enumerable.Select(source, x => x * 2).Sum());
-Console.WriteLine(SelectCompiler(source, x => x * 2).Sum());
-Console.WriteLine(SelectManual(source, x => x * 2).Sum());
+
+for (int i = 0; i < 10_000; ++i)
+{
+    foreach (int value in SelectManual(source, x => x * 2)) { }
+}
+
+//Console.WriteLine(Enumerable.Select(source, x => x * 2).Sum());
+//Console.WriteLine(SelectCompiler(source, x => x * 2).Sum());
+//Console.WriteLine(SelectManual(source, x => x * 2).Sum());
 
 static IEnumerable<TResult> SelectCompiler<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
 {
