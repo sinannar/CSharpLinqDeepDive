@@ -49,6 +49,7 @@ class SelectManualEnumerable<TSource, TResult> : IEnumerable<TResult>, IEnumerat
     private IEnumerable<TSource> _source;
     private Func<TSource, TResult> _selector;
 
+    private int _threadId = Environment.CurrentManagedThreadId;
     private TResult _current = default!;
     private IEnumerator<TSource>? _enumerator;
     private int _state = 0;
@@ -61,7 +62,8 @@ class SelectManualEnumerable<TSource, TResult> : IEnumerable<TResult>, IEnumerat
 
     public IEnumerator<TResult> GetEnumerator()
     {
-        if(Interlocked.CompareExchange(ref _state, 1, 0) == 0)
+        //if(Interlocked.CompareExchange(ref _state, 1, 0) == 0)
+        if(_threadId == Environment.CurrentManagedThreadId && _state == 0)
         {
             _state = 1;
             return this;
