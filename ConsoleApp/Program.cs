@@ -15,8 +15,14 @@ static IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TSource> source
     ArgumentNullException.ThrowIfNull(source);
     ArgumentNullException.ThrowIfNull(selector);
 
-    foreach (var item in source)
+    return Impl(source, selector);
+
+    static IEnumerable<TResult> Impl<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
     {
-        yield return selector(item);
+
+        foreach (var item in source)
+        {
+            yield return selector(item);
+        }
     }
 }
