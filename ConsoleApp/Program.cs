@@ -2,7 +2,7 @@
 using IEnumerator<int> enumerator = e.GetEnumerator();
 try
 {
-
+    Console.WriteLine(enumerator);
     while (enumerator.MoveNext())
     {
         int i = enumerator.Current;
