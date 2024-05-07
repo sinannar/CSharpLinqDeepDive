@@ -61,7 +61,7 @@ class SelectManualEnumerable<TSource, TResult> : IEnumerable<TResult>, IEnumerat
 
     public IEnumerator<TResult> GetEnumerator()
     {
-        if(_state == 0)
+        if(Interlocked.CompareExchange(ref _state, 1, 0) == 0)
         {
             _state = 1;
             return this;
