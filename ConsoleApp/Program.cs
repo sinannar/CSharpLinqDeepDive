@@ -1,14 +1,6 @@
-﻿
-//Enumerable.Select<int, int>(null, i => i * 2);
-
-
-Console.WriteLine(0);
-IEnumerable<int> e = Select<int, int>(null, i => i * 2);
-Console.WriteLine(1);
-IEnumerator<int> enumarator = e.GetEnumerator();
-Console.WriteLine(2);
-enumarator.MoveNext();
-Console.WriteLine(3);
+﻿IEnumerable<int> source = Enumerable.Range(0, 1000).ToArray();
+Console.WriteLine(Enumerable.Select(source, x => x * 2).Sum());
+Console.WriteLine(Select(source, x => x * 2).Sum());
 
 static IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
 {
