@@ -1,9 +1,17 @@
 ﻿IEnumerable<int> e = GetValues();
 using IEnumerator<int> enumerator = e.GetEnumerator();
-while (enumerator.MoveNext())
+try
 {
-    int i = enumerator.Current;
-    Console.WriteLine(i);
+
+    while (enumerator.MoveNext())
+    {
+        int i = enumerator.Current;
+        Console.WriteLine(i);
+    }
+}
+finally 
+{ 
+    enumerator?.Dispose();
 }
 
 foreach (int i in GetValues())
