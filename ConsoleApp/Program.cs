@@ -1,27 +1,24 @@
-﻿IEnumerable<int> e = GetValues();
-using IEnumerator<int> enumerator = e.GetEnumerator();
-try
+﻿
+//IEnumerable<Person> people = new List<Person>()
+//{
+//    new Person { Name = "Scott"},
+//    new Person { Name = "Alice"},
+//    new Person { Name = "Bob"}
+//};
+
+//IEnumerable<string> names = people.Select(p => p.Name);
+
+//class Person
+//{
+//    public string Name { get; set; }
+//}
+
+
+
+static IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
 {
-    Console.WriteLine(enumerator);
-    while (enumerator.MoveNext())
+    foreach (var item in source)
     {
-        int i = enumerator.Current;
-        Console.WriteLine(i);
+        yield return selector(item);
     }
-}
-finally 
-{ 
-    enumerator?.Dispose();
-}
-
-foreach (int i in GetValues())
-{
-    Console.WriteLine(i);
-}
-
-static IEnumerable<int> GetValues()
-{
-    yield return 1;
-    yield return 2;
-    yield return 3;
 }
