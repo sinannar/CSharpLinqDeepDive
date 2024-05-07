@@ -1,19 +1,4 @@
 ﻿
-//IEnumerable<Person> people = new List<Person>()
-//{
-//    new Person { Name = "Scott"},
-//    new Person { Name = "Alice"},
-//    new Person { Name = "Bob"}
-//};
-
-//IEnumerable<string> names = people.Select(p => p.Name);
-
-//class Person
-//{
-//    public string Name { get; set; }
-//}
-
-
 IEnumerable<int> source = new List<int>() { 1, 2, 3 };
 foreach (var i in Select(source, i => i * 2))
 {
