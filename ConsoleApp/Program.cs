@@ -8,10 +8,25 @@ using System.Diagnostics;
 //                        where i % 2 == 0
 //                        select i * 2;
 
-IEnumerable<int> source = Enumerable.Range(0, 1000).ToArray();
-Console.WriteLine(Enumerable.Select(Enumerable.Where(source, i => i % 2 == 0), i => i * 2).Sum());
-Console.WriteLine(Tests.SelectCompiler(Tests.WhereCompiler(source, i => i % 2 == 0), i => i * 2).Sum());
-Console.WriteLine(Tests.SelectManual(Tests.WhereManual(source, i => i % 2 == 0), i => i * 2).Sum());
+Console.WriteLine("Enumerable");
+IEnumerable<int> sourceEnumerable = Enumerable.Range(0, 1000);
+Console.WriteLine(Enumerable.Select(Enumerable.Where(sourceEnumerable, i => i % 2 == 0), i => i * 2));
+Console.WriteLine(Enumerable.Select(Enumerable.Where(sourceEnumerable, i => i % 2 == 0), i => i * 2).Sum());
+Console.WriteLine(Tests.SelectCompiler(Tests.WhereCompiler(sourceEnumerable, i => i % 2 == 0), i => i * 2));
+Console.WriteLine(Tests.SelectCompiler(Tests.WhereCompiler(sourceEnumerable, i => i % 2 == 0), i => i * 2).Sum());
+Console.WriteLine(Tests.SelectManual(Tests.WhereManual(sourceEnumerable, i => i % 2 == 0), i => i * 2));
+Console.WriteLine(Tests.SelectManual(Tests.WhereManual(sourceEnumerable, i => i % 2 == 0), i => i * 2).Sum());
+
+Console.WriteLine("\n\nArray");
+IEnumerable<int> sourceArray = Enumerable.Range(0, 1000).ToArray();
+Console.WriteLine(Enumerable.Select(Enumerable.Where(sourceArray, i => i % 2 == 0), i => i * 2));
+Console.WriteLine(Enumerable.Select(Enumerable.Where(sourceArray, i => i % 2 == 0), i => i * 2).Sum());
+Console.WriteLine(Tests.SelectCompiler(Tests.WhereCompiler(sourceArray, i => i % 2 == 0), i => i * 2));
+Console.WriteLine(Tests.SelectCompiler(Tests.WhereCompiler(sourceArray, i => i % 2 == 0), i => i * 2).Sum());
+Console.WriteLine(Tests.SelectManual(Tests.WhereManual(sourceArray, i => i % 2 == 0), i => i * 2));
+Console.WriteLine(Tests.SelectManual(Tests.WhereManual(sourceArray, i => i % 2 == 0), i => i * 2).Sum());
+
+Console.WriteLine("Done");
 
 //for (int i = 0; i < 10_000; ++i)
 //{
@@ -104,15 +119,14 @@ public class Tests
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(filter);
 
-        //if (source is TSource[] array)
-        //{
-        //    return ArrayImpl(array, selector);
-        //}
+        if (source is TSource[] array)
+        {
+            return ArrayImpl(array, filter);
+        }
         return EnumerableImpl(source, filter);
 
         static IEnumerable<TSource> EnumerableImpl(IEnumerable<TSource> source, Func<TSource, bool> filter)
         {
-
             foreach (var item in source)
             {
                 if (filter(item))
@@ -122,13 +136,17 @@ public class Tests
             }
         }
 
-        //static IEnumerable<TResult> ArrayImpl<TSource, TResult>(TSource[] source, Func<TSource, TResult> selector)
-        //{
-        //    for (var i = 0; i < source.Length; i++)
-        //    {
-        //        yield return selector(source[i]);
-        //    }
-        //}
+        static IEnumerable<TSource> ArrayImpl(TSource[] source, Func<TSource, bool> filter)
+        {
+            for (var i = 0; i < source.Length; i++)
+            {
+                var item = source[i];
+                if (filter(item))
+                {
+                    yield return item;
+                }
+            }
+        }
     }
 
     public static IEnumerable<TResult> SelectManual<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
@@ -140,6 +158,17 @@ public class Tests
         {
             return new SelectManualArray<TSource, TResult>(array, selector);
         }
+
+        if (source is WhereManualArray<TSource> where2)
+        {
+            return new WhereSelectManualArray<TSource, TResult>(where2._source, where2._filter, selector);
+        }
+
+        if (source is WhereManualEnumerable<TSource> where)
+        {
+            return new WhereSelectManualEnumerable<TSource, TResult>(where._source, where._filter, selector);
+        }
+
         return new SelectManualEnumerable<TSource, TResult>(source, selector);
     }
 
@@ -147,6 +176,12 @@ public class Tests
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(filter);
+
+        if (source is TSource[] array)
+        {
+            return new WhereManualArray<TSource>(array, filter);
+        }
+
 
         return new WhereManualEnumerable<TSource>(source, filter);
     }
@@ -230,8 +265,8 @@ public class Tests
 
     sealed class WhereManualEnumerable<TSource> : IEnumerable<TSource>, IEnumerator<TSource>
     {
-        private IEnumerable<TSource> _source;
-        private Func<TSource, bool> _filter;
+        internal IEnumerable<TSource> _source;
+        internal Func<TSource, bool> _filter;
 
         private int _threadId = Environment.CurrentManagedThreadId;
         private TSource _current = default!;
@@ -307,6 +342,87 @@ public class Tests
         }
     }
 
+    sealed class WhereSelectManualEnumerable<TSource, TResult> : IEnumerable<TResult>, IEnumerator<TResult>
+    {
+        private IEnumerable<TSource> _source;
+        private Func<TSource, TResult> _selector;
+        private Func<TSource, bool> _filter;
+
+        private int _threadId = Environment.CurrentManagedThreadId;
+        private TResult _current = default!;
+        private IEnumerator<TSource>? _enumerator;
+        private int _state = 0;
+
+        public WhereSelectManualEnumerable(IEnumerable<TSource> source, Func<TSource, bool> filter, Func<TSource, TResult> selector)
+        {
+            _source = source;
+            _selector = selector;
+            _filter = filter;
+        }
+
+        public IEnumerator<TResult> GetEnumerator()
+        {
+            //if(Interlocked.CompareExchange(ref _state, 1, 0) == 0)
+            if (_threadId == Environment.CurrentManagedThreadId && _state == 0)
+            {
+                _state = 1;
+                return this;
+            }
+            return new WhereSelectManualEnumerable<TSource, TResult>(_source, _filter, _selector) { _state = 1 };
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public TResult Current => _current;
+
+        object? IEnumerator.Current => Current;
+
+        public bool MoveNext()
+        {
+            switch (_state)
+            {
+                case 1:
+                    _enumerator = _source.GetEnumerator();
+                    _state = 2;
+                    goto case 2;
+                case 2:
+                    Debug.Assert(_enumerator is not null);
+                    try
+                    {
+                        while (_enumerator.MoveNext())
+                        {
+                            TSource current = _enumerator.Current;
+                            if (_filter(current))
+                            {
+                                _current = _selector(current);
+                                return true;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        Dispose();
+                        throw;
+                    }
+                    break;
+            }
+
+            Dispose();
+            return false;
+        }
+
+        public void Dispose()
+        {
+            _state = -1;
+            _enumerator?.Dispose();
+        }
+
+        public void Reset()
+        {
+            throw new NotSupportedException();
+        }
+    }
+
 
     sealed class SelectManualArray<TSource, TResult> : IEnumerable<TResult>, IEnumerator<TResult>
     {
@@ -353,6 +469,146 @@ public class Tests
                 return true;
             }
 
+
+            Dispose();
+            return false;
+        }
+
+        public void Dispose()
+        {
+            _state = -1;
+        }
+
+        public void Reset()
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    sealed class WhereManualArray<TSource> : IEnumerable<TSource>, IEnumerator<TSource>
+    {
+        internal TSource[] _source;
+        internal Func<TSource, bool> _filter;
+
+        private int _threadId = Environment.CurrentManagedThreadId;
+        private TSource _current = default!;
+        private int _state = 0;
+
+        public WhereManualArray(TSource[] source, Func<TSource, bool> filter)
+        {
+            _source = source;
+            _filter = filter;
+        }
+
+        public IEnumerator<TSource> GetEnumerator()
+        {
+            //if(Interlocked.CompareExchange(ref _state, 1, 0) == 0)
+            if (_threadId == Environment.CurrentManagedThreadId && _state == 0)
+            {
+                _state = 1;
+                return this;
+            }
+            return new WhereManualArray<TSource>(_source, _filter) { _state = 1 };
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public TSource Current => _current;
+
+        object? IEnumerator.Current => Current;
+
+        public bool MoveNext()
+        {
+            int i = _state - 1;
+            TSource[] source = _source;
+
+
+            while ((uint)i < (uint)source.Length)
+            {
+                _state++;
+                i = _state - 1;
+
+                if((uint)i < (uint)source.Length)
+                {
+                    TSource current = source[i];
+                    if (_filter(current))
+                    {
+                        _current = current;
+                        return true;
+                    }
+                }
+            }
+
+
+            Dispose();
+            return false;
+        }
+
+        public void Dispose()
+        {
+            _state = -1;
+        }
+
+        public void Reset()
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    sealed class WhereSelectManualArray<TSource, TResult> : IEnumerable<TResult>, IEnumerator<TResult>
+    {
+        private TSource[] _source;
+        private Func<TSource, TResult> _selector;
+        private Func<TSource, bool> _filter;
+
+        private int _threadId = Environment.CurrentManagedThreadId;
+        private TResult _current = default!;
+        private int _state = 0;
+
+        public WhereSelectManualArray(TSource[] source, Func<TSource, bool> filter, Func<TSource, TResult> selector)
+        {
+            _source = source;
+            _selector = selector;
+            _filter = filter;
+        }
+
+        public IEnumerator<TResult> GetEnumerator()
+        {
+            //if(Interlocked.CompareExchange(ref _state, 1, 0) == 0)
+            if (_threadId == Environment.CurrentManagedThreadId && _state == 0)
+            {
+                _state = 1;
+                return this;
+            }
+            return new WhereSelectManualArray<TSource, TResult>(_source, _filter, _selector) { _state = 1 };
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public TResult Current => _current;
+
+        object? IEnumerator.Current => Current;
+
+        public bool MoveNext()
+        {
+            int i = _state - 1;
+            TSource[] source = _source;
+
+            while ((uint)i < (uint)source.Length)
+            {
+                _state++;
+                i = _state - 1;
+
+                if ((uint)i < (uint)source.Length)
+                {
+                    TSource current = source[i];
+                    if (_filter(current))
+                    {
+                        _current = _selector(current);
+                        return true;
+                    }
+                }
+            }
 
             Dispose();
             return false;
