@@ -65,15 +65,32 @@ public class Tests
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
 
-        return Impl(source, selector);
+        if (source is TSource[] array)
+        {
+            return ArrayImpl(array, selector);
+        }
+        return EnumerableImpl(source, selector);
 
-        static IEnumerable<TResult> Impl<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+        static IEnumerable<TResult> EnumerableImpl<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
         {
 
             foreach (var item in source)
             {
                 yield return selector(item);
             }
+        }
+
+        static IEnumerable<TResult> ArrayImpl<TSource, TResult>(TSource[] source, Func<TSource, TResult> selector)
+        {
+            for (var i = 0; i < source.Length; i++)
+            {
+                yield return selector(source[i]);
+            }
+
+            //foreach (var item in source)
+            //{
+            //    yield return selector(item);
+            //}
         }
     }
 
